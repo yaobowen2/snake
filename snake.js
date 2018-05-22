@@ -1,31 +1,28 @@
-/**
- * 转向
- * 增长
- * 加速
- * 判断重合
- * 判断碰壁
- */
 const INIT_LENGTH = 4;
 const WIDTH = 50;
 
 class Snake {
     constructor() {
-        this.coordinates = [];
-        this.headDirection = 0;
-        this.footDirection = 0;
+        this.coordinates = [{
+            x: INIT_WIDTH,
+            y: 0,
+            direction: 1
+        }, {
+            x: 0,
+            y: 0
+        }];
+        this.parts = [];
+        this.nextDirection = 1;
     }
 
-    // move() {
-    //     if (this.nextDirection === )
-    //         switch (this.nextDirection) {
-    //             case 0:
-    //         }
-    // }
-
-    forward() {
+    step() {
         const coordinates = this.coordinates;
         const headPoint = coordinates[0];
-        switch (this.headDirection) {
+        const headDirection = headPoint.direction;
+        if (this.nextDirection === headDirection + 2 || this.nextDirection === headDirection - 2) {
+            this.nextDirection = headDirection;
+        }
+        switch (this.nextDirection) {
             case 0:
                 headPoint.y--;
                 break;
@@ -39,8 +36,10 @@ class Snake {
                 headPoint.x--;
                 break;
         }
-        const footPoint = coordinates[coordinates.length - 1];
-        switch (this.footDirection) {
+        const len = coordinates.length;
+        const footPoint = coordinates[len - 1];
+        const lastSecondPoint = coordinates[len - 2];
+        switch (lastSecondPoint.direction) {
             case 0:
                 footPoint.y--;
                 break;
@@ -55,58 +54,62 @@ class Snake {
                 break;
         }
         if (coordinates.length > 2) {
-            const { x, y } = coordinates[coordinates.length - 2];
-            if (footPoint.x === x && footPoint.y === y) {
+            if (footPoint.x === lastSecondPoint.x && footPoint.y === lastSecondPoint.y) {
                 coordinates.pop();
             }
         }
         this.render();
     }
 
-    left() {
-
-    }
-
-    right() {
-
-    }
-
-    top() {
-
-    }
-
-    bottom() {
-
-    }
-
     increaseLength() {
-
-    }
-
-    speedUp() {
-
+        const coordinates = this.coordinates;
+        const len = coordinates.length;
+        const footPoint = coordinates[len - 1];
+        const lastSecondPoint = coordinates[len - 2];
+        switch (lastSecondPoint.direction) {
+            case 0:
+                footPoint.y++;
+            case 1:
+                footPoint.x--;
+            case 2:
+                footPoint.y--;
+            case 3:
+                footPoint.x++;
+        }
+        this.render();
     }
 
     render() {
-
+        const parts = this.parts;
+        this.coordinates.forEach((c1, i, coordinates) => {
+            if (i !== 0 && i !== coordinates.length - 2) {
+                return;
+            }
+            const c2 = coordinates[i + i];
+            let part = parts[i];
+            if (!part) {
+                part = parts[i] = document.createElement('div');
+                part.className = 'snake-part';
+            }
+            const style = parts[i].style;
+            style.left = Math.min(c1.x, c2.x);
+            style.top = Math.min(c1.y, c2.y);
+            if (c1.x === c2.x) {
+                style.width = WIDTH + 'px';
+                style.height = Math.abs(c1.y - c2.y) * WIDTH + 'px';
+            } else {
+                style.width = Math.abs(c1.x - c2.x) * WIDTH + 'px';
+                style.height = WIDTH + 'px';
+            }
+            style.display = 'block';
+        })
+        parts.slice(this.coordinates.length).forEach(part => part.style.display = 'none');
     }
 
     start() {
-        if (!this.coordinates.length) {
-            this.coordinates.push({
-                x: INIT_WIDTH,
-                y: 0,
-                direction: 1
-            })
-            this.coordinates.push({
-                x: 0,
-                y: 0,
-                direction: 1
-            })
-        }
         this.render();
         this.timer = setInterval(() => {
-            this.move();
+            this.step();
         }, 1000)
         this.running = true;
         document.onclick = e => {
