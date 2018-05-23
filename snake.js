@@ -1,11 +1,13 @@
 const INIT_LENGTH = 4;
 const WIDTH = 50;
 const body = document.body;
+const windowWidth = window.innerWidth;
+const windowHeight = window.innerHeight;
 
 class Snake {
     constructor() {
         this.coordinates = [{
-            x: INIT_LENGTH,
+            x: INIT_LENGTH - 1,
             y: 0,
             direction: 1
         }, {
@@ -14,6 +16,24 @@ class Snake {
         }];
         this.parts = [];
         this.nextDirection = 1;
+        document.addEventListener('keydown', e => {
+            if (this.running) {
+                switch (e.keyCode) {
+                    case 37: // ←
+                        this.nextDirection = 3;
+                        break;
+                    case 38: // ↑
+                        this.nextDirection = 0;
+                        break;
+                    case 39: // →
+                        this.nextDirection = 1;
+                        break;
+                    case 40: // ↓
+                        this.nextDirection = 2;
+                        break;
+                }
+            }
+        })
     }
 
     step() {
@@ -44,6 +64,12 @@ class Snake {
             case 3:
                 headPoint.x--;
                 break;
+        }
+        const { x, y } = headPoint;
+        if (x < 0 || y < 0 || x > windowWidth || y > windowHeight) {
+            this.stop();
+            this.onfail && this.onfail();
+            return;
         }
         const len = coordinates.length;
         const footPoint = coordinates[len - 1];
@@ -91,64 +117,36 @@ class Snake {
     render() {
         const parts = this.parts;
         const coordinates = this.coordinates;
-        const len1 = coordinates.length - 1, len2 = parts.length;
-        if ( > parts.length) {
-            parts.push()
-        } else if (coordinates.length - 1 < parts.length) {
-
-        }
         this.coordinates.forEach((c1, i, coordinates) => {
-            if (i !== 0 && i !== coordinates.length - 2) {
+            const c2 = coordinates[i + 1];
+            if (!c2) {
                 return;
             }
-            const c2 = coordinates[i + 1];
             let part = parts[i];
             if (!part) {
                 part = parts[i] = document.createElement('div');
                 part.className = 'snake-part';
             }
-            const style = parts[i].style;
-            style.left = Math.min(c1.x, c2.x) * WIDTH + 'px';
-            style.top = Math.min(c1.y, c2.y) * WIDTH + 'px';
+            const left = Math.min(c1.x, c2.x) * WIDTH + 'px';
+            const top = Math.min(c1.y, c2.y) * WIDTH + 'px';
+            let width, height;
             if (c1.x === c2.x) {
-                style.width = WIDTH + 'px';
-                style.height = Math.abs(c1.y - c2.y) * WIDTH + 'px';
+                width = WIDTH + 'px';
+                height = Math.abs(c1.y - c2.y) * WIDTH + WIDTH + 'px';
             } else {
-                style.width = Math.abs(c1.x - c2.x) * WIDTH + 'px';
-                style.height = WIDTH + 'px';
+                width = Math.abs(c1.x - c2.x) * WIDTH + WIDTH + 'px';
+                height = WIDTH + 'px';
             }
-            style.display = 'block';
+            part.style.cssText = `display:block;left:${left};top:${top};width:${width};height:${height}`;
             body.appendChild(part);
         })
-        parts.slice(this.coordinates.length).forEach(part => part.style.display = 'none');
+        parts.slice(this.coordinates.length - 1).forEach(part => part.style.display = 'none');
     }
 
-    start() {
+    run() {
         this.render();
-        // this.timer = setInterval(() => {
-        //     this.step();
-        // }, 1000)
+        this.timer = setInterval(this.step.bind(this), 500);
         this.running = true;
-        document.onkeydown = e => {
-            if (this.running) {
-                switch (e.keyCode) {
-                    case 37: // ←
-                        this.nextDirection = 3;
-                        break;
-                    case 38: // ↑
-                        this.nextDirection = 0;
-                        break;
-                    case 39: // →
-                        this.nextDirection = 1;
-                        break;
-                    case 40: // ↓
-                        this.nextDirection = 2;
-                        break;
-                    case 13:
-                        this.step();
-                }
-            }
-        }
     }
 
     stop() {
@@ -156,4 +154,7 @@ class Snake {
         this.running = false;
     }
 
+    isRunning() {
+        return this.running;
+    }
 }
