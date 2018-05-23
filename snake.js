@@ -1,10 +1,11 @@
 const INIT_LENGTH = 4;
 const WIDTH = 50;
+const body = document.body;
 
 class Snake {
     constructor() {
         this.coordinates = [{
-            x: INIT_WIDTH,
+            x: INIT_LENGTH,
             y: 0,
             direction: 1
         }, {
@@ -17,10 +18,18 @@ class Snake {
 
     step() {
         const coordinates = this.coordinates;
-        const headPoint = coordinates[0];
+        let headPoint = coordinates[0];
         const headDirection = headPoint.direction;
         if (this.nextDirection === headDirection + 2 || this.nextDirection === headDirection - 2) {
             this.nextDirection = headDirection;
+        }
+        if (this.nextDirection !== headDirection) {
+            headPoint = {
+                x: headPoint.x,
+                y: headPoint.y,
+                direction: this.nextDirection
+            }
+            coordinates.unshift(headPoint);
         }
         switch (this.nextDirection) {
             case 0:
@@ -81,19 +90,26 @@ class Snake {
 
     render() {
         const parts = this.parts;
+        const coordinates = this.coordinates;
+        const len1 = coordinates.length - 1, len2 = parts.length;
+        if ( > parts.length) {
+            parts.push()
+        } else if (coordinates.length - 1 < parts.length) {
+
+        }
         this.coordinates.forEach((c1, i, coordinates) => {
             if (i !== 0 && i !== coordinates.length - 2) {
                 return;
             }
-            const c2 = coordinates[i + i];
+            const c2 = coordinates[i + 1];
             let part = parts[i];
             if (!part) {
                 part = parts[i] = document.createElement('div');
                 part.className = 'snake-part';
             }
             const style = parts[i].style;
-            style.left = Math.min(c1.x, c2.x);
-            style.top = Math.min(c1.y, c2.y);
+            style.left = Math.min(c1.x, c2.x) * WIDTH + 'px';
+            style.top = Math.min(c1.y, c2.y) * WIDTH + 'px';
             if (c1.x === c2.x) {
                 style.width = WIDTH + 'px';
                 style.height = Math.abs(c1.y - c2.y) * WIDTH + 'px';
@@ -102,17 +118,18 @@ class Snake {
                 style.height = WIDTH + 'px';
             }
             style.display = 'block';
+            body.appendChild(part);
         })
         parts.slice(this.coordinates.length).forEach(part => part.style.display = 'none');
     }
 
     start() {
         this.render();
-        this.timer = setInterval(() => {
-            this.step();
-        }, 1000)
+        // this.timer = setInterval(() => {
+        //     this.step();
+        // }, 1000)
         this.running = true;
-        document.onclick = e => {
+        document.onkeydown = e => {
             if (this.running) {
                 switch (e.keyCode) {
                     case 37: // ←
@@ -127,6 +144,8 @@ class Snake {
                     case 40: // ↓
                         this.nextDirection = 2;
                         break;
+                    case 13:
+                        this.step();
                 }
             }
         }
@@ -136,9 +155,5 @@ class Snake {
         clearTimeout(this.timer);
         this.running = false;
     }
-
-}
-
-class Controller {
 
 }
