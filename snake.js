@@ -1,5 +1,6 @@
-const INIT_LENGTH = 4;
-const WIDTH = 50;
+const DISTANCE_STEP = 4;// 每帧走10px
+const INIT_LENGTH = 4;// 初始长度是宽度的4倍
+const WIDTH = 40;// 蛇粗40px
 const body = document.body;
 const windowWidth = window.innerWidth;
 const windowHeight = window.innerHeight;
@@ -7,7 +8,7 @@ const windowHeight = window.innerHeight;
 class Snake {
     constructor() {
         this.coordinates = [{
-            x: INIT_LENGTH - 1,
+            x: WIDTH * (INIT_LENGTH - 1),
             y: 0,
             direction: 1
         }, {
@@ -53,16 +54,16 @@ class Snake {
         }
         switch (this.nextDirection) {
             case 0:
-                headPoint.y--;
+                headPoint.y -= DISTANCE_STEP;
                 break;
             case 1:
-                headPoint.x++;
+                headPoint.x += DISTANCE_STEP;
                 break;
             case 2:
-                headPoint.y++;
+                headPoint.y += DISTANCE_STEP;
                 break;
             case 3:
-                headPoint.x--;
+                headPoint.x -= DISTANCE_STEP;
                 break;
         }
         const { x, y } = headPoint;
@@ -76,16 +77,16 @@ class Snake {
         const lastSecondPoint = coordinates[len - 2];
         switch (lastSecondPoint.direction) {
             case 0:
-                footPoint.y--;
+                footPoint.y -= DISTANCE_STEP;
                 break;
             case 1:
-                footPoint.x++;
+                footPoint.x += DISTANCE_STEP;
                 break;
             case 2:
-                footPoint.y++;
+                footPoint.y += DISTANCE_STEP;
                 break;
             case 3:
-                footPoint.x--;
+                footPoint.x -= DISTANCE_STEP;
                 break;
         }
         if (coordinates.length > 2) {
@@ -103,15 +104,18 @@ class Snake {
         const lastSecondPoint = coordinates[len - 2];
         switch (lastSecondPoint.direction) {
             case 0:
-                footPoint.y++;
+                footPoint.y += WIDTH;
+                break;
             case 1:
-                footPoint.x--;
+                footPoint.x -= WIDTH;
+                break;
             case 2:
-                footPoint.y--;
+                footPoint.y -= WIDTH;
+                break;
             case 3:
-                footPoint.x++;
+                footPoint.x += WIDTH;
+                break;
         }
-        this.render();
     }
 
     render() {
@@ -127,14 +131,14 @@ class Snake {
                 part = parts[i] = document.createElement('div');
                 part.className = 'snake-part';
             }
-            const left = Math.min(c1.x, c2.x) * WIDTH + 'px';
-            const top = Math.min(c1.y, c2.y) * WIDTH + 'px';
+            const left = Math.min(c1.x, c2.x) + 'px';
+            const top = Math.min(c1.y, c2.y) + 'px';
             let width, height;
             if (c1.x === c2.x) {
                 width = WIDTH + 'px';
-                height = Math.abs(c1.y - c2.y) * WIDTH + WIDTH + 'px';
+                height = Math.abs(c1.y - c2.y) + WIDTH + 'px';
             } else {
-                width = Math.abs(c1.x - c2.x) * WIDTH + WIDTH + 'px';
+                width = Math.abs(c1.x - c2.x) + WIDTH + 'px';
                 height = WIDTH + 'px';
             }
             part.style.cssText = `display:block;left:${left};top:${top};width:${width};height:${height}`;
@@ -145,16 +149,42 @@ class Snake {
 
     run() {
         this.render();
-        this.timer = setInterval(this.step.bind(this), 500);
+        const step = () => {
+            this.step();
+            if (this.running) {
+                requestAnimationFrame(step);
+            }
+        }
+        requestAnimationFrame(step);
+        setInterval(this.increaseLength.bind(this), 1400)
         this.running = true;
     }
 
     stop() {
-        clearTimeout(this.timer);
         this.running = false;
     }
 
     isRunning() {
         return this.running;
+    }
+}
+
+class Seed {
+
+    show() {
+        const x = this.x = Math.floor(Math.random() * windowWidth);
+        const y = this.y = Math.floor(Math.random() * windowHeight);
+        const style = `left:${x};top:${y}`
+        let dom = this.dom;
+        if (!dom) {
+            dom = this.dom = document.createElement
+        }
+    }
+
+    getCoordinate() {
+        return {
+            x: this.x,
+            y: this.y
+        }
     }
 }
