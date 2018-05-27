@@ -1,10 +1,13 @@
-const DISTANCE_STEP = 4;// 每帧走4px
-const INIT_LENGTH = 4;// 初始长度是宽度的4倍
-const WIDTH_SNAKE = 40;// 蛇粗40px
-const WIDTH_SEED = WIDTH_SNAKE / 2;//种子是蛇粗的一半
+const DISTANCE_STEP = 6;// 每帧走的像素值
+const INIT_LENGTH = 4;// 初始长度对于宽度的倍数
+const WIDTH_SNAKE = 40;// 蛇粗的像素值
+const WIDTH_SEED = WIDTH_SNAKE / 2;//种子直径
+
 const body = document.body;
 const windowWidth = window.innerWidth;
 const windowHeight = window.innerHeight;
+
+const recycledBodys = [];
 
 class Snake {
     constructor({
@@ -15,22 +18,23 @@ class Snake {
         this.onfail = onfail;
         this.oneat = oneat;
         this.seed = seed || new Seed();
-        this.parts = [];
+
         this.reset();
+        this.render();
         document.addEventListener('keydown', e => {
             if (this.running) {
                 switch (e.keyCode) {
                     case 37: // ←
-                        this.nextDirection = 3;
+                        this.nextDirection = -1;
                         break;
                     case 38: // ↑
-                        this.nextDirection = 0;
+                        this.nextDirection = 2;
                         break;
                     case 39: // →
                         this.nextDirection = 1;
                         break;
                     case 40: // ↓
-                        this.nextDirection = 2;
+                        this.nextDirection = -2;
                         break;
                 }
             }
@@ -38,134 +42,93 @@ class Snake {
     }
 
     step() {
-        const coordinates = this.coordinates;
-        let point_head = coordinates[0];
-        const headDirection = point_head.direction;
-        if (this.nextDirection === headDirection + 2 || this.nextDirection === headDirection - 2) {
-            this.nextDirection = headDirection;
+        const parts = this.parts;
+        let head = parts[0];
+        const headDirection = head.direction;
+        const nextDirection = this.nextDirection;
+        if (nextDirection !== headDirection && nextDirection !== -headDirection && (head.width === WIDTH_SNAKE && head.height > WIDTH_SNAKE * 2 || head.height === WIDTH_SNAKE && head.width > WIDTH_SNAKE * 2)) {
+            const bodyArgs = {
+                direction: nextDirection,
+                width: WIDTH_SNAKE,
+                height: WIDTH_SNAKE
+            }
+            switch (headDirection) {
+                case 2:
+                    bodyArgs.top = head.top;
+                    bodyArgs.left = head.left;
+                    break;
+                case 1:
+                    bodyArgs.left = head.left + head.width - WIDTH_SNAKE;
+                    bodyArgs.top = head.top;
+                    break;
+                case -2:
+                    bodyArgs.top = head.top + head.height - WIDTH_SNAKE;
+                    bodyArgs.left = head.left;
+                    break;
+                case -1:
+                    bodyArgs.left = head.left;
+                    bodyArgs.top = head.top;
+                    break;
+            }
+            head = recycledBodys.shift();
+            head ? head.reset(bodyArgs) : (head = new SnakeBodyPart(bodyArgs));
+            this.parts.unshift(head);
+            head.forward();
+        } else {
+            head.forward();
         }
-        let nextDirection = this.nextDirection;
-        if (nextDirection !== headDirection) {
-            if (Math.abs(point_head.x - coordinates[1].x) + Math.abs(point_head.y - coordinates[1].y) < WIDTH_SNAKE) {
-                nextDirection = headDirection;
-            } else {
-                point_head = {
-                    x: point_head.x,
-                    y: point_head.y,
-                    direction: nextDirection
-                }
-                coordinates.unshift(point_head);
+
+        const tail = parts[parts.length - 1];
+        tail.shrink();
+
+        this.render();
+
+        if (tail.isDead()) {
+            recycledBodys.push(parts.pop());
+        }
+
+        if (this.doCheck() === false) {
+            this.fail();
+        }
+    }
+
+    doCheck() {
+        const parts = this.parts;
+        const head = parts[0];
+        const { left, top, width, height, direction } = head;
+        if (left < 0 || top < 0 || left + width > windowWidth || top + height > windowHeight) {
+            return false;
+        }
+
+        for (let i = 3; i < parts.length; i++) {
+            let p = parts[i];
+            if (!(left > p.left + p.width || left + width < p.left) && !(top > p.top + p.height || top + height < p.top)) {
+                return false;
             }
         }
-        switch (nextDirection) {
-            case 0:
-                point_head.y -= DISTANCE_STEP;
-                break;
-            case 1:
-                point_head.x += DISTANCE_STEP;
-                break;
-            case 2:
-                point_head.y += DISTANCE_STEP;
-                break;
-            case 3:
-                point_head.x -= DISTANCE_STEP;
-                break;
-        }
 
-        const { x, y } = point_head;
-        if (x < 0 || y < 0 || x > windowWidth || y > windowHeight) {
-            this.stop();
-            this.onfail && this.onfail();
-            return;
-        }
-
-        const len = coordinates.length;
-        const point_foot = coordinates[len - 1];
-        const point_lastSecond = coordinates[len - 2];
-        switch (point_lastSecond.direction) {
-            case 0:
-                point_foot.y -= DISTANCE_STEP;
-                break;
-            case 1:
-                point_foot.x += DISTANCE_STEP;
-                break;
-            case 2:
-                point_foot.y += DISTANCE_STEP;
-                break;
-            case 3:
-                point_foot.x -= DISTANCE_STEP;
-                break;
-        }
-        if (coordinates.length > 2) {
-            if (point_foot.x === point_lastSecond.x && point_foot.y === point_lastSecond.y) {
-                coordinates.pop();
-            }
-        }
-
+        const x = direction === 1 ? left + width - WIDTH_SNAKE / 2 : left + WIDTH_SNAKE / 2;
+        const y = direction === -2 ? top + height - WIDTH_SNAKE / 2 : top + WIDTH_SNAKE / 2
         const { x: x2, y: y2 } = this.seed.getCoordinate();
-        const _x = x + WIDTH_SNAKE / 2 - x2;
-        const _y = y + WIDTH_SNAKE / 2 - y2;
-        if (_x * _x + _y * _y < WIDTH_SEED * WIDTH_SEED / 2) {
+        const gap_x = x - x2, gap_y = y - y2;
+        if (gap_x * gap_x + gap_y * gap_y < WIDTH_SEED * WIDTH_SEED) {
             this.seed.toggleLocation();
             this.grow();
             this.oneat && this.oneat();
         }
-        this.render();
     }
 
     grow() {
-        const coordinates = this.coordinates;
-        const len = coordinates.length;
-        const point_foot = coordinates[len - 1];
-        const point_lastSecond = coordinates[len - 2];
-        switch (point_lastSecond.direction) {
-            case 0:
-                point_foot.y += WIDTH_SNAKE;
-                break;
-            case 1:
-                point_foot.x -= WIDTH_SNAKE;
-                break;
-            case 2:
-                point_foot.y -= WIDTH_SNAKE;
-                break;
-            case 3:
-                point_foot.x += WIDTH_SNAKE;
-                break;
-        }
+        this.parts[this.parts.length - 1].grow();
     }
 
     render() {
-        const parts = this.parts;
-        const coordinates = this.coordinates;
-        this.coordinates.forEach((c1, i, coordinates) => {
-            const c2 = coordinates[i + 1];
-            if (!c2) {
-                return;
-            }
-            let part = parts[i];
-            if (!part) {
-                part = parts[i] = document.createElement('div');
-                part.className = 'snake-part';
-            }
-            const left = Math.min(c1.x, c2.x) + 'px';
-            const top = Math.min(c1.y, c2.y) + 'px';
-            let width, height;
-            if (c1.x === c2.x) {
-                width = WIDTH_SNAKE + 'px';
-                height = Math.abs(c1.y - c2.y) + WIDTH_SNAKE + 'px';
-            } else {
-                width = Math.abs(c1.x - c2.x) + WIDTH_SNAKE + 'px';
-                height = WIDTH_SNAKE + 'px';
-            }
-            part.style.cssText = `display:block;left:${left};top:${top};width:${width};height:${height}`;
-            body.appendChild(part);
-        })
-        parts.slice(this.coordinates.length - 1).forEach(part => part.style.display = 'none');
+        this.parts.forEach(part => part.render());
     }
 
     run() {
         if (!this.running) {
-            this.render();
+            this.reset();
             if (!this.seed.dom) {
                 this.seed.toggleLocation();
             }
@@ -180,9 +143,9 @@ class Snake {
         }
     }
 
-    stop() {
+    fail() {
         this.running = false;
-        this.reset();
+        this.onfail && this.onfail();
     }
 
     isRunning() {
@@ -190,15 +153,119 @@ class Snake {
     }
 
     reset() {
-        this.coordinates = [{
-            x: WIDTH_SNAKE * (INIT_LENGTH - 1),
-            y: 0,
+        this.running = false;
+        this.parts && this.parts.forEach(p => {
+            recycledBodys.push(p);
+            p.recycle();
+        });
+        this.parts = [new SnakeBodyPart({
+            left: 0,
+            top: 0,
+            width: INIT_LENGTH * WIDTH_SNAKE,
+            height: WIDTH_SNAKE,
             direction: 1
-        }, {
-            x: 0,
-            y: 0
-        }];
+        })]
         this.nextDirection = 1;
+        this.render();
+    }
+}
+
+class SnakeBodyPart {
+    constructor(args) {
+        this.reset(args);
+    }
+
+    forward() {
+        switch (this.direction) {
+            case 2:
+                this.top -= DISTANCE_STEP;
+                this.height += DISTANCE_STEP;
+                break;
+            case 1:
+                this.width += DISTANCE_STEP;
+                break;
+            case -2:
+                this.height += DISTANCE_STEP;
+                break;
+            case -1:
+                this.width += DISTANCE_STEP;
+                this.left -= DISTANCE_STEP;
+                break;
+        }
+    }
+
+    shrink() {
+        switch (this.direction) {
+            case 2:
+                this.height -= DISTANCE_STEP;
+                break;
+            case 1:
+                this.left += DISTANCE_STEP;
+                this.width -= DISTANCE_STEP;
+                break;
+            case -2:
+                this.top += DISTANCE_STEP;
+                this.height -= DISTANCE_STEP;
+                break;
+            case -1:
+                this.width -= DISTANCE_STEP;
+                break;
+        }
+        if (Math.max(this.width, this.height) <= WIDTH_SNAKE) {
+            this.dead = true;
+        }
+    }
+
+    grow() {
+        switch (this.direction) {
+            case 2:
+                this.height += WIDTH_SNAKE;
+                break;
+            case 1:
+                this.left -= WIDTH_SNAKE;
+                this.width += WIDTH_SNAKE;
+                break;
+            case -2:
+                this.top -= WIDTH_SNAKE;
+                this.height += WIDTH_SNAKE;
+                break;
+            case -1:
+                this.width += WIDTH_SNAKE;
+                break;
+        }
+    }
+
+    isDead() {
+        return this.dead;
+    }
+
+    reset({ left, top, direction, width, height }) {
+        this.left = left;
+        this.top = top;
+        this.direction = direction;
+        this.width = width;
+        this.height = height;
+
+        this.dead = false;
+    }
+
+    render() {
+        if (!this.dom) {
+            this.dom = body.appendChild(document.createElement('div'));
+            this.dom.className = 'snake-part';
+        } else if (this.needAppend) {
+            body.appendChild(this.dom);
+        }
+        if (this.dead) {
+            this.recycle();
+        } else {
+            this.dom.style.cssText = `width:${this.width}px;height:${this.height};top:${this.top}px;left:${this.left}px`;
+        }
+    }
+
+    recycle() {
+        body.removeChild(this.dom);
+        this.needAppend = true;
     }
 }
 
