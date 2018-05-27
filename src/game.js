@@ -1,3 +1,6 @@
+import './style.css';
+import { Snake, Seed } from './snake.js';
+
 class Panel {
     constructor() {
         this.dom = document.body.appendChild(document.createElement('div'));

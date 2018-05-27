@@ -259,7 +259,7 @@ class SnakeBodyPart {
         if (this.dead) {
             this.recycle();
         } else {
-            this.dom.style.cssText = `width:${this.width}px;height:${this.height};top:${this.top}px;left:${this.left}px`;
+            this.dom.style.cssText = `width:${this.width}px;height:${this.height}px;top:${this.top}px;left:${this.left}px`;
         }
     }
 
@@ -292,4 +292,8 @@ class Seed {
             y: this.y
         }
     }
+}
+
+export {
+    Snake, Seed
 }
